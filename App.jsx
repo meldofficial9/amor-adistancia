@@ -48,10 +48,20 @@ function loadConfig() {
 }
 function saveConfig(cfg){ localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)) }
 
+/* ---------------- Envelope (agrandado en desktop) ---------------- */
 function Envelope({ onOpen }){
   return (
-    <motion.div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-rose-100 to-pink-200" initial={{opacity:0}} animate={{opacity:1}}>
-      <motion.div className="relative w-[320px] h-[220px] cursor-pointer" onClick={onOpen} whileHover={{scale:1.03}} whileTap={{scale:0.98}}>
+    <motion.div
+      className="w-full min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-100 to-pink-200 pt-16"
+      initial={{opacity:0}}
+      animate={{opacity:1}}
+    >
+      <motion.div
+        className="relative w-[360px] h-[250px] md:w-[420px] md:h-[280px] cursor-pointer"
+        onClick={onOpen}
+        whileHover={{scale:1.03}}
+        whileTap={{scale:0.98}}
+      >
         <div className="absolute inset-0 bg-white shadow-xl rounded-lg" />
         <div className="absolute inset-0 rounded-lg overflow-hidden">
           <div className="absolute inset-0 bg-rose-200" style={{ clipPath: 'polygon(0 0, 100% 0, 50% 55%)' }} />
@@ -100,6 +110,7 @@ function LetterModal({ title, text, onClose }){
   )
 }
 
+/* ---------------- Gallery (fix w-full + más aire top) ---------------- */
 function Gallery({ cfg, setCfg }){
   const [index, setIndex] = useState(0)
   const [edit, setEdit] = useState(false)
@@ -131,7 +142,7 @@ function Gallery({ cfg, setCfg }){
   }
 
   return (
-    <div className="max-w-4xl mx-auto pt-20 px-4">
+    <div className="max-w-4xl mx-auto pt-24 px-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Nuestros recuerdos</h3>
         <div className="flex items-center gap-2">
@@ -147,14 +158,19 @@ function Gallery({ cfg, setCfg }){
           {current?.url ? (
             <img src={current.url} alt="recuerdo" className="max-h-full max-w-full object-contain"/>
           ) : (
-            <div className="text-gray-500 text-sm p-6 text-center">Sube una foto para este recuerdo.
+            <div className="text-gray-500 text-sm p-6 text-center">
+              Sube una foto para este recuerdo.
               <br/>También puedes añadir más imágenes con “Añadir foto”.
             </div>
           )}
         </div>
         <div className="p-4 border-t bg-rose-50/60">
           {edit ? (
-            <input value={current?.caption||''} onChange={(e)=>onCaptionChange(e.target.value)} className="w/full rounded-md border px-3 py-2"/>
+            <input
+              value={current?.caption||''}
+              onChange={(e)=>onCaptionChange(e.target.value)}
+              className="w-full rounded-md border px-3 py-2"  /* <- corregido w-full */
+            />
           ) : (
             <p className="text-center text-rose-700 font-medium">{current?.caption}</p>
           )}
@@ -170,6 +186,7 @@ function Gallery({ cfg, setCfg }){
   )
 }
 
+/* ---------------- Quiz (más aire top) ---------------- */
 function Quiz({ cfg }){
   const [phase, setPhase] = useState(0)
   const [answers, setAnswers] = useState({})
@@ -205,8 +222,12 @@ function Quiz({ cfg }){
         {p.questions.map((item, idx)=>(
           <div key={idx} className="bg-white rounded-xl border p-4">
             <p className="font-medium mb-2">{item.q}</p>
-            <input className="w-full rounded-md border px-3 py-2" value={answers[item.q]||''}
-              onChange={(e)=>setAnswers(prev=>({...prev, [item.q]: e.target.value}))} placeholder="Tu respuesta" />
+            <input
+              className="w-full rounded-md border px-3 py-2"
+              value={answers[item.q]||''}
+              onChange={(e)=>setAnswers(prev=>({...prev, [item.q]: e.target.value}))}
+              placeholder="Tu respuesta"
+            />
           </div>
         ))}
       </div>
@@ -290,19 +311,44 @@ export default function App(){
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-rose-50 to-white text-gray-800">
-      <TopBar onShowConfig={()=>setShowCfg(true)} onGoGallery={()=>setView('gallery')} onGoQuiz={()=>setView('quiz')} playing={playing} togglePlay={togglePlay} />
+      <TopBar
+        onShowConfig={()=>setShowCfg(true)}
+        onGoGallery={()=>setView('gallery')}
+        onGoQuiz={()=>setView('quiz')}
+        playing={playing}
+        togglePlay={togglePlay}
+      />
+
       {cfg.music.type!=='none' && (<audio ref={audioRef} src={musicSrc} loop />)}
+
       {cfg.music.type==='upload' && (
         <div className="fixed bottom-3 right-3 z-40">
           <label className="btn cursor-pointer"><Music size={16}/> Subir música
-            <input type="file" accept="audio/*" className="hidden" onChange={(e)=>{
-              const f = e.target.files?.[0]; if(!f) return; const u = URL.createObjectURL(f); setUploadedURL(u)
-            }}/>
+            <input
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={(e)=>{
+                const f = e.target.files?.[0]; if(!f) return;
+                const u = URL.createObjectURL(f); setUploadedURL(u)
+              }}
+            />
           </label>
         </div>
       )}
+
       {view==='envelope' && (<Envelope onOpen={handleOpen} />)}
-      <AnimatePresence>{showLetter && (<LetterModal title={cfg.title} text={cfg.letter} onClose={()=>{ setShowLetter(false); setView('gallery') }} />)}</AnimatePresence>
+
+      <AnimatePresence>
+        {showLetter && (
+          <LetterModal
+            title={cfg.title}
+            text={cfg.letter}
+            onClose={()=>{ setShowLetter(false); setView('gallery') }}
+          />
+        )}
+      </AnimatePresence>
+
       {view==='gallery' && (<Gallery cfg={cfg} setCfg={setCfg} />)}
       {view==='quiz' && (<Quiz cfg={cfg} />)}
       {showCfg && (<ConfigPanel cfg={cfg} setCfg={setCfg} onClose={()=>setShowCfg(false)} />)}
