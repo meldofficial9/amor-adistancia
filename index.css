@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.btn { @apply px-3 py-1.5 rounded-full bg-rose-600 text-white text-sm shadow hover:bg-rose-700 transition flex items-center gap-1; }
+.nav-btn { @apply bg-white/90 hover:bg-white text-rose-600 border rounded-full p-2 shadow; }
