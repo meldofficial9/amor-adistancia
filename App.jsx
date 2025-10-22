@@ -2,6 +2,42 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Heart, Music, Pause, Play, Upload, ImagePlus, Pencil, Check, X, ChevronLeft, ChevronRight, BookOpen, Gamepad2, Settings2, Download, UploadCloud } from 'lucide-react'
 
+/* ===== Helper para convertir File -> DataURL comprimido (persistente) ===== */
+async function fileToCompressedDataURL(file, maxWidth = 1400, quality = 0.82) {
+  // 1) File -> DataURL original
+  const dataURL = await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+
+  // 2) Cargarlo en un <img> para saber tamaño real
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image()
+    i.onload = () => resolve(i)
+    i.onerror = reject
+    i.src = dataURL
+  })
+
+  // 3) Si ya es pequeño, devolver tal cual
+  if (img.width <= maxWidth) return dataURL
+
+  // 4) Redimensionar y comprimir a JPEG (puedes cambiar a image/webp si prefieres)
+  const ratio = maxWidth / img.width
+  const targetW = maxWidth
+  const targetH = Math.round(img.height * ratio)
+
+  const canvas = document.createElement('canvas')
+  canvas.width = targetW
+  canvas.height = targetH
+  const ctx = canvas.getContext('2d')
+  ctx.drawImage(img, 0, 0, targetW, targetH)
+
+  const compressed = canvas.toDataURL('image/jpeg', quality)
+  return compressed
+}
+
 function cryptoRandomId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
@@ -110,7 +146,7 @@ function LetterModal({ title, text, onClose }){
   )
 }
 
-/* ---------------- Gallery (fix w-full + más aire top) ---------------- */
+/* ---------------- Gallery (usa DataURL persistente + fix w-full) ---------------- */
 function Gallery({ cfg, setCfg }){
   const [index, setIndex] = useState(0)
   const [edit, setEdit] = useState(false)
@@ -121,14 +157,23 @@ function Gallery({ cfg, setCfg }){
   function next(){ setIndex((i)=> (i+1) % slides.length) }
   function prev(){ setIndex((i)=> (i-1+slides.length) % slides.length) }
 
-  function onUpload(e){
+  // AHORA: convierte el File a DataURL comprimido y lo guarda (persistente)
+  async function onUpload(e){
     const f = e.target.files?.[0]
     if(!f) return
-    const url = URL.createObjectURL(f)
-    const s = { id: cryptoRandomId(), caption: 'Nuevo recuerdo', url }
-    const newCfg = { ...cfg, slides: [...slides, s] }
-    setCfg(newCfg); saveConfig(newCfg); setIndex(slides.length)
+    try {
+      const dataURL = await fileToCompressedDataURL(f, 1400, 0.82)
+      const s = { id: cryptoRandomId(), caption: 'Nuevo recuerdo', url: dataURL }
+      const newCfg = { ...cfg, slides: [...slides, s] }
+      setCfg(newCfg); saveConfig(newCfg); setIndex(slides.length)
+    } catch (err) {
+      console.error('Error al procesar imagen:', err)
+      alert('No se pudo procesar la imagen. Intenta con otra o más pequeña.')
+    } finally {
+      e.target.value = '' // permite re-subir la misma imagen si hace falta
+    }
   }
+
   function onCaptionChange(val){
     const updated = slides.map(s=> s.id===current.id? {...s, caption: val}: s)
     const newCfg = { ...cfg, slides: updated }
@@ -169,7 +214,7 @@ function Gallery({ cfg, setCfg }){
             <input
               value={current?.caption||''}
               onChange={(e)=>onCaptionChange(e.target.value)}
-              className="w-full rounded-md border px-3 py-2"  /* <- corregido w-full */
+              className="w-full rounded-md border px-3 py-2"
             />
           ) : (
             <p className="text-center text-rose-700 font-medium">{current?.caption}</p>
@@ -337,7 +382,7 @@ export default function App(){
         </div>
       )}
 
-      {view==='envelope' && (<Envelope onOpen={handleOpen} />)}
+      {view==='envelope' && (<Envelope onClick={null} onOpen={handleOpen} />)}
 
       <AnimatePresence>
         {showLetter && (
